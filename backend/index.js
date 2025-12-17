@@ -70,9 +70,8 @@ await credential.find().then(function(data){
 
 
 })
+ module.exports=app
 
-// module.exports=app
-
- app.listen(5000, () => {
-    console.log("server started sucrssfully...")
- })
+//  app.listen(5000, () => {
+//     console.log("server started sucrssfully...")
+//  })
