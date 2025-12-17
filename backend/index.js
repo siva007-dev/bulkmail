@@ -30,9 +30,24 @@ async function connectDB() {
   }
 }
 
-/* ---------------- MODEL ---------------- */
+/* ---------------- MODEL & SCHEMA ----- */
 
-const Credential = mongoose.model("credential", {}, "bulkmail");
+const credentialSchema = new mongoose.Schema(
+  {
+    user: {
+      type: String,
+      required: true
+    },
+    pass: {
+      type: String,
+      required: true
+    }
+  },
+  { collection: "bulkmail" }
+);
+
+const Credential = mongoose.model("Credential", credentialSchema);
+
 
 /* ---------------- ROUTE ---------------- */
 
@@ -48,12 +63,24 @@ app.post("/sendemail", async (req, res) => {
       return res.status(500).send("Email credentials not found");
     }
 
+   const cred = data[0];
+
+const user = typeof cred.user === "string" ? cred.user.trim() : "";
+const pass = typeof cred.pass === "string" ? cred.pass.trim() : "";
+
+console.log("USER:", user);
+console.log("PASS LENGTH:", pass.length);
+
+if (!user || !pass) {
+  throw new Error("Email credentials missing in database");
+}
+
     // 3️⃣ Setup mail transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: data[0].user,
-        pass: data[0].pass
+        user,
+        pass
       }
     });
 
@@ -82,3 +109,8 @@ app.post("/sendemail", async (req, res) => {
 /* ---------------- EXPORT FOR VERCEL ---------------- */
 
 export default app;
+
+// app.listen(5000,()=>{
+//     console.log("server is started...")
+// })
+
