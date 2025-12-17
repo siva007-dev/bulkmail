@@ -1,4 +1,4 @@
-import express from"express"
+import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import nodemailer from "nodemailer";
@@ -6,72 +6,79 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const app = express();
 
+app.use(cors({ origin: process.env.APPLICATION_URL }));
+app.use(express.json());
 
-const app = express()
+/* ---------------- DB CONNECTION (CACHED) ---------------- */
 
-const corsOptions={
-    origin:process.env.APPLICATION_URL
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URL, {
+      bufferCommands: false
+    });
+    isConnected = db.connections[0].readyState;
+    console.log("MongoDB connected");
+  } catch (error) {
+    console.error("MongoDB connection failed", error);
+    throw error;
+  }
 }
 
-app.use(cors(corsOptions))
-app.use(express.json())
+/* ---------------- MODEL ---------------- */
 
-mongoose.connect(process.env.MONGODB_URL).then(function(){
-    console.log("connected to db")
-}).catch(function(){
-    console.log("failled to connect with db")
-})
+const Credential = mongoose.model("credential", {}, "bulkmail");
 
-const credential =mongoose.model("credential",{},"bulkmail")
+/* ---------------- ROUTE ---------------- */
 
+app.post("/sendemail", async (req, res) => {
+  try {
+    // 1️⃣ Ensure DB is connected
+    await connectDB();
 
-app.post("/sendemail",async function (req, res) {
+    // 2️⃣ Fetch credentials
+    const data = await Credential.find();
 
-await credential.find().then(function(data){
-    const transporter=nodemailer.createTransport({
-        service:"gmail",
-        auth:{
-            user:data[0].toJSON().user,
-            pass:data[0].toJSON().pass
-        }
-    })
-    
-     const msg = req.body.msg
-    const emaillist = req.body.emaillist
+    if (!data.length) {
+      return res.status(500).send("Email credentials not found");
+    }
 
-    new Promise(async function (resolve, reject) {
+    // 3️⃣ Setup mail transporter
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: data[0].user,
+        pass: data[0].pass
+      }
+    });
 
-        try {
-            for (var i = 0; i < emaillist.length; i++) {
+    const { msg, emaillist } = req.body;
 
-                await transporter.sendMail(
-                    {
-                        from: "toknow0000@gmail.com",
-                        to: emaillist[i],
-                        subject: "message from bulkmail",
-                        text: msg
-                    }
-                )
-            }
-            resolve("sucess")
-        }
-        catch (error) {
-            reject("failed"+error)
-        }
+    // 4️⃣ Send emails (parallel & fast)
+    await Promise.all(
+      emaillist.map(email =>
+        transporter.sendMail({
+          from: data[0].user,
+          to: email,
+          subject: "Message from BulkMail",
+          text: msg
+        })
+      )
+    );
 
-    }).then(function () {
-        res.send(true)
-    }).catch(function (error) {
-        console.log(error)
-        res.send(false)
-    })
-})
+    res.send(true);
 
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(false);
+  }
+});
 
-})
- module.exports=app
+/* ---------------- EXPORT FOR VERCEL ---------------- */
 
-//  app.listen(5000, () => {
-//     console.log("server started sucrssfully...")
-//  })
+export default app;
