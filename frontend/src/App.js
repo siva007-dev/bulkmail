@@ -13,7 +13,7 @@ function App() {
   }
   function send(){
     setsts(true)
-    axios.post(process.env.API_URL,{msg:msg , emaillist:emaillist})
+    axios.post(`${process.env.REACT_APP_API_URL}/sendemail`,{msg:msg , emaillist:emaillist})
     .then(function(data)
     {
       if(data.data=== true){

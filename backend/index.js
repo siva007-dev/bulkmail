@@ -6,8 +6,15 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+
+
 const app = express()
-app.use(cors())
+
+const corsOptions={
+    origin:process.env.APPLICATION_URL
+}
+
+app.use(cors(corsOptions))
 app.use(express.json())
 
 mongoose.connect(process.env.MONGODB_URL).then(function(){
@@ -64,8 +71,8 @@ await credential.find().then(function(data){
 
 })
 
-module.exports=app
+// module.exports=app
 
-// app.listen(process.env.APPLICATION_URL, () => {
-//     console.log("server started sucrssfully...")
-// })
+ app.listen(5000, () => {
+    console.log("server started sucrssfully...")
+ })
